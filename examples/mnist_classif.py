@@ -6,14 +6,18 @@ import matplotlib.pyplot as plt
 
 from lassonet import LassoNetClassifier
 
+X, y = fetch_openml(name="cifar_10_small", return_X_y=True)
+X = X.reshape(-1, 32,32,3)
+X = X.mean(axis=-1)
+X = X.reshape(-1, 32*32)/255
+
 X, y = fetch_openml(name="mnist_784", return_X_y=True)
-filter = y.isin(["5", "6"])
-X = X[filter].values / 255
-y = LabelEncoder().fit_transform(y[filter])
 
-X_train, X_test, y_train, y_test = train_test_split(X, y)
+print("data loaded")
 
-model = LassoNetClassifier(M=30, verbose=True)
+X_train, X_test, y_train, y_test = train_test_split(X, y.astype(float))
+print("training")
+model = LassoNetClassifier(M=30, verbose=True, lambda_start=1e-0, hidden_dims=(512,16))
 path = model.path(X_train, y_train)
 
 img = model.feature_importances_.reshape(28, 28)
@@ -36,25 +40,25 @@ for save in path:
 
 to_plot = [160, 220, 300]
 
-for i, save in zip(n_selected, path):
-    if not to_plot:
-        break
-    if i > to_plot[-1]:
-        continue
-    to_plot.pop()
-    plt.clf()
-    plt.title(f"Linear model with {i} features")
-    weight = save.state_dict["skip.weight"]
-    img = (weight[1] - weight[0]).reshape(28, 28)
-    plt.imshow(img)
-    plt.colorbar()
-    plt.savefig(f"mnist-classification-{i}.png")
+# for i, save in zip(n_selected, path):
+#     if not to_plot:
+#         break
+#     if i > to_plot[-1]:
+#         continue
+#     to_plot.pop()
+#     plt.clf()
+#     plt.title(f"Linear model with {i} features")
+#     weight = save.state_dict["skip.weight"]
+#     img = (weight[1] - weight[0]).reshape(28, 28)
+#     plt.imshow(img)
+#     plt.colorbar()
+#     plt.savefig(f"mnist-classification-{i}.png")
 
 fig = plt.figure(figsize=(12, 12))
 
 plt.subplot(311)
 plt.grid(True)
-plt.plot(n_selected, accuracy, ".-")
+plt.plot(n_selected, accuracy, ".")
 plt.xlabel("number of selected features")
 plt.ylabel("classification accuracy")
 
