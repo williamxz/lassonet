@@ -10,3 +10,4 @@ dist/
 build/
 *.png
 .idea
+/examples/data/cifar10/

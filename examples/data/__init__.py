@@ -32,7 +32,6 @@ def get_mnist(filter=None):
     y = LabelEncoder().fit_transform(y[filter])
     return X, y
 
-
 def get_cifar_small(grayscale=True):
     X, y = fetch_openml(name="cifar_10_small", return_X_y=True)
     if grayscale:
