@@ -1,16 +1,16 @@
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
-from data import get_mnist
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
+from data import get_mnist
 from lassonet import LassoNetClassifier
 
-X, y = get_mnist(['5', '6'])
+X, y = get_mnist(['1', '4'])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 
-model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(512,256))
-path = model.path(X_train, y_train)
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,))
+path = model.path((X_train, y_train), stochastic=False)
 
 img = model.feature_importances_.reshape(28, 28)
 
@@ -25,7 +25,7 @@ lambda_ = []
 
 for save in path:
     model.load(save.state_dict)
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test, stochastic=False)
     n_selected.append(save.selected.sum())
     accuracy.append(accuracy_score(y_test, y_pred))
     lambda_.append(save.lambda_)
