@@ -187,7 +187,8 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                         y_pred.extend(model(X).tolist())
                         y_true.extend(y.tolist())
                     return (
-                            self.criterion(y_pred, y_true).item()
+                            self.criterion(torch.tensor(y_pred).to(self.device),
+                                           torch.tensor(y_true).to(self.device)).item()
                             + lambda_ * model.regularization().item()
                     )
                 else:
