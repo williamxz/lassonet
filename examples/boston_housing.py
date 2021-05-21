@@ -40,7 +40,7 @@ for save in path:
     mse.append(mean_squared_error(y_test, y_pred))
     lambda_.append(save.lambda_)
 
-
+n_selected = [k.cpu() for k in n_selected]
 fig = plt.figure(figsize=(12, 12))
 
 plt.subplot(311)
