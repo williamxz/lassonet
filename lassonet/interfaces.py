@@ -33,22 +33,22 @@ class HistoryItem:
 
 class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
     def __init__(
-        self,
-        *,
-        hidden_dims=(100,),
-        eps_start=1,
-        lambda_start=None,
-        path_multiplier=1.02,
-        M=10,
-        optim=None,
-        n_iters=(1000, 100),
-        patience=(100, 10),
-        tol=0.99,
-        val_size=0.1,
-        device=None,
-        verbose=0,
-        random_state=None,
-        torch_seed=None,
+            self,
+            *,
+            hidden_dims=(100,),
+            eps_start=1,
+            lambda_start=None,
+            path_multiplier=1.02,
+            M=10,
+            optim=None,
+            n_iters=(1000, 100),
+            patience=(100, 10),
+            tol=0.99,
+            val_size=0.1,
+            device=None,
+            verbose=0,
+            random_state=None,
+            torch_seed=None,
     ):
         """
         Parameters
@@ -160,39 +160,68 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
         return self
 
     def _train(
-        self,
-        X_train,
-        y_train,
-        X_val,
-        y_val,
-        epochs,
-        lambda_,
-        optimizer,
-        patience=None,
+            self,
+            data,
+            epochs,
+            lambda_,
+            optimizer,
+            patience=None,
+            stochastic=True
     ):
         model = self.model
+        if stochastic:
+            train_loader, test_loader = data
+        else:
+            train, test = data
+            X_train, y_train = train
+            X_val, y_val = test
 
         def validation_loss():
             with torch.no_grad():
                 model.eval()
-                return (
-                    self.criterion(model(X_val), y_val).item()
-                    + lambda_ * model.regularization().item()
-                )
+                if stochastic:
+                    y_pred = []
+                    y_true = []
+                    for X, y in test_loader:
+                        X, y = X.to(self.device), y.to(self.device)
+                        y_pred.extend(model(X).tolist())
+                        y_true.extend(y.tolist())
+                    return (
+                            self.criterion(torch.tensor(y_pred).to(self.device),
+                                           torch.tensor(y_true).to(self.device)).item()
+                            + lambda_ * model.regularization().item()
+                    )
+                else:
+                    return (
+                            self.criterion(model(X_val), y_val).item()
+                            + lambda_ * model.regularization().item()
+                    )
 
         best_obj = validation_loss()
         epochs_since_best_obj = 0
 
         for epoch in range(epochs):
+            if stochastic:
+                for X, y in train_loader:
+                    X, y = X.to(self.device), y.to(self.device)
 
-            def closure():
-                optimizer.zero_grad()
-                loss = self.criterion(model(X_train), y_train)
-                loss.backward()
-                return loss
+                    def closure():
+                        optimizer.zero_grad()
+                        loss = self.criterion(model(X), y)
+                        loss.backward()
+                        return loss
 
-            model.train()
-            optimizer.step(closure)
+                    model.train()
+                    optimizer.step(closure)
+            else:
+                def closure():
+                    optimizer.zero_grad()
+                    loss = self.criterion(model(X_train), y_train)
+                    loss.backward()
+                    return loss
+
+                model.train()
+                optimizer.step(closure)
             if lambda_:
                 model.prox(lambda_=lambda_ * optimizer.param_groups[0]['lr'], M=self.M)
 
@@ -214,7 +243,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
     def _lambda_max(X, y):
         raise NotImplementedError
 
-    def path(self, X, y, lambda_=None) -> List[HistoryItem]:
+    def path(self, data, lambda_=None, stochastic=True) -> List[HistoryItem]:
         """Train LassoNet on a lambda_ path.
         The path is defined by the class parameters:
         start at `eps * lambda_max` and increment according
@@ -224,9 +253,10 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
         The optional `lambda_` argument will also stop the path when
         this value is reached.
         """
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=self.val_size)
-        X_train, y_train = self._cast_input(X_train, y_train)
-        X_val, y_val = self._cast_input(X_val, y_val)
+        if not stochastic:
+            X, y = data
+            X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=self.val_size)
+            data = ((self._cast_input(X_train, y_train)), (self._cast_input(X_val, y_val)))
 
         hist = []
 
@@ -243,19 +273,24 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
             )
 
         if self.model is None:
-            self._init_model(X_train, y_train)
+            if stochastic:
+                X_0, y_0 = None, None
+                for X, y in data[0]:
+                    X_0, y_0 = X, y
+                    break
+                self._init_model(X_0, y_0)
+            else:
+                self._init_model(X_train, y_train)
 
         register(
             hist,
             *self._train(
-                X_train,
-                y_train,
-                X_val,
-                y_val,
+                data,
                 lambda_=0,
                 epochs=self.n_iters_init,
                 optimizer=self.optim_init(self.model.parameters()),
                 patience=self.patience_init,
+                stochastic=stochastic
             ),
         )
         if self.verbose:
@@ -275,14 +310,12 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
             register(
                 hist,
                 *self._train(
-                    X_train,
-                    y_train,
-                    X_val,
-                    y_val,
+                    data,
                     lambda_=current_lambda,
                     epochs=self.n_iters_path,
                     optimizer=optimizer,
                     patience=self.patience_path,
+                    stochastic=stochastic
                 ),
             )
             last = hist[-1]
@@ -363,12 +396,21 @@ class LassoNetRegressor(
 
     criterion = torch.nn.MSELoss(reduction="mean")
 
-    def predict(self, X):
-        with torch.no_grad():
-            ans = self.model(self._cast_input(X))
-        if isinstance(X, np.ndarray):
-            ans = ans.cpu().numpy()
-        return ans
+    def predict(self, data, stochastic=True):
+        if stochastic:
+            y_pred = []
+            y_true = []
+            for X, y in data:
+                X, y = X.to(self.device), y.to(self.device)
+                y_pred.extend(self.model(X).tolist())
+                y_true.extend(y.tolist())
+                return y_pred, y_true
+        else:
+            with torch.no_grad():
+                ans = self.model(self._cast_input(X))
+            if isinstance(data, np.ndarray):
+                ans = ans.cpu().numpy()
+            return ans
 
 
 class LassoNetClassifier(
@@ -395,19 +437,37 @@ class LassoNetClassifier(
 
     criterion = torch.nn.CrossEntropyLoss(reduction="mean")
 
-    def predict(self, X):
-        with torch.no_grad():
-            ans = self.model(self._cast_input(X)).argmax(dim=1)
-        if isinstance(X, np.ndarray):
-            ans = ans.cpu().numpy()
-        return ans
+    def predict(self, data, stochastic=True):
+        if stochastic:
+            y_pred = []
+            y_true = []
+            for X, y in data:
+                X, y = X.to(self.device), y.to(self.device)
+                y_pred.extend(self.model(X).argmax(dim=1).tolist())
+                y_true.extend(y.tolist())
+                return y_pred, y_true
+        else:
+            with torch.no_grad():
+                ans = self.model(self._cast_input(data)).argmax(dim=1)
+            if isinstance(data, np.ndarray):
+                ans = ans.cpu().numpy()
+            return ans
 
-    def predict_proba(self, X):
-        with torch.no_grad():
-            ans = torch.softmax(self.model(self._cast_input(X)), -1)
-        if isinstance(X, np.ndarray):
-            ans = ans.cpu().numpy()
-        return ans
+    def predict_proba(self, data, stochastic=True):
+        if stochastic:
+            y_pred = []
+            y_true = []
+            for X, y in data:
+                X, y = X.to(self.device), y.to(self.device)
+                y_pred.extend(torch.softmax(self.model(X), -1).tolist())
+                y_true.extend(y.tolist())
+                return y_pred, y_true
+        else:
+            with torch.no_grad():
+                ans = torch.softmax(self.model(self._cast_input(data)), -1)
+            if isinstance(data, np.ndarray):
+                ans = ans.cpu().numpy()
+            return ans
 
 
 def lassonet_path(X, y, task, **kwargs):

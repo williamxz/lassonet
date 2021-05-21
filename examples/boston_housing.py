@@ -1,29 +1,12 @@
-#!/usr/bin/env python
-
-from sklearn.datasets import load_boston
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import scale
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import numpy as np
+from data import get_boston_housing
 
 from lassonet import LassoNetRegressor
 
-
-dataset = load_boston()
-X = dataset.data
-y = dataset.target
-_, true_features = X.shape
-# add dummy feature
-X = np.concatenate([X, np.random.randn(*X.shape)], axis=1)
-feature_names = list(dataset.feature_names) + ["fake"] * true_features
-
-# standardize
-X = StandardScaler().fit_transform(X)
-y = scale(y)
-
-
+X, y = get_boston_housing()
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 
 model = LassoNetRegressor(hidden_dims=(10,), verbose=True, patience=(100, 5))

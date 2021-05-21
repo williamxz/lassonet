@@ -1,12 +1,15 @@
-from sklearn.datasets import fetch_openml
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+<<<<<<< HEAD
 from keras.datasets import cifar10
+=======
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+>>>>>>> 66dde47b031908b9df521353db57424c9fbb807d
 
+from data import get_mnist
 from lassonet import LassoNetClassifier
 
+<<<<<<< HEAD
 def process_arr(X):
     X = X.reshape(-1, 32,32,3)
     X = X.mean(axis=-1)
@@ -26,17 +29,19 @@ X, y = fetch_openml(name="mnist_784", return_X_y=True)
 #filter = y.isin(["5", "6"])
 X = X.values / 255 #[filter].values / 255
 y = LabelEncoder().fit_transform(y)#[filter])
+X, y = get_mnist(['1', '4'])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 '''
 X_train, y_train, X_test, y_test = load_cifar()
 
-model = LassoNetClassifier(M=30, hidden_dims=(16,512), verbose=True)
-path = model.path(X_train, y_train)
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,))
+path = model.path((X_train, y_train), stochastic=False)
 
 img = model.feature_importances_.reshape(32, 32)
 
-plt.title("Feature importance")
+
+plt.title("Feature importance.")
 plt.imshow(img)
 plt.colorbar()
 plt.savefig("cifar-classification-importance.png")
@@ -47,7 +52,7 @@ lambda_ = []
 
 for save in path:
     model.load(save.state_dict)
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test, stochastic=False)
     n_selected.append(save.selected.sum())
     accuracy.append(accuracy_score(y_test, y_pred))
     lambda_.append(save.lambda_)
