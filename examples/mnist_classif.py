@@ -1,15 +1,11 @@
 import matplotlib.pyplot as plt
-<<<<<<< HEAD
 from keras.datasets import cifar10
-=======
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
->>>>>>> 66dde47b031908b9df521353db57424c9fbb807d
 
 from data import get_mnist
 from lassonet import LassoNetClassifier
 
-<<<<<<< HEAD
 def process_arr(X):
     X = X.reshape(-1, 32,32,3)
     X = X.mean(axis=-1)
