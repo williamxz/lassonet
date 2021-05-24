@@ -1,24 +1,20 @@
-from sklearn.datasets import fetch_openml
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
+from data import get_mnist
 from lassonet import LassoNetClassifier
 
-X, y = fetch_openml(name="mnist_784", return_X_y=True)
-filter = y.isin(["5", "6"])
-X = X[filter].values / 255
-y = LabelEncoder().fit_transform(y[filter])
+X, y = get_mnist(['1', '4'])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 
-model = LassoNetClassifier(M=30, verbose=True)
-path = model.path(X_train, y_train)
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,))
+path = model.path((X_train, y_train), stochastic=False)
 
 img = model.feature_importances_.reshape(28, 28)
 
-plt.title("Feature importance to discriminate 5 and 6")
+plt.title("Feature importance.")
 plt.imshow(img)
 plt.colorbar()
 plt.savefig("mnist-classification-importance.png")
@@ -29,7 +25,7 @@ lambda_ = []
 
 for save in path:
     model.load(save.state_dict)
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_test, stochastic=False)
     n_selected.append(save.selected.sum())
     accuracy.append(accuracy_score(y_test, y_pred))
     lambda_.append(save.lambda_)
