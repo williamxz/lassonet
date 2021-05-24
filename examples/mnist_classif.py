@@ -34,7 +34,7 @@ for save in path:
     accuracy.append(accuracy_score(y_test, y_pred))
     lambda_.append(save.lambda_)
 
-to_plot = [160, 220, 300]
+to_plot = [10, 25,50, 75, 100]
 
 for i, save in zip(n_selected, path):
     if not to_plot:
