@@ -45,15 +45,11 @@ def get_cifar_small(grayscale=True):
 
 
 def get_cifar(train=True, batch_size=64, val_size=.1, flatten=False):
-    if flatten:
-        transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                                    torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                                                                     (0.2023, 0.1994, 0.2010)),
-                                                    torchvision.transforms.Lambda(lambda x: torch.flatten(x))])
-    else:
-        transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                                    torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                                                                     (0.2023, 0.1994, 0.2010))])
+    transformList = [torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                                     (0.2023, 0.1994, 0.2010)),
+                    torchvision.transforms.Lambda(lambda x: torch.flatten(x)) if flatten else None]
+    transform = torchvision.transforms.Compose([x for x in transformList if x is not None])
     dataset = torchvision.datasets.CIFAR10(os.path.join(os.getcwd(), 'data', 'cifar10'), train=train, download=True,
                                            transform=transform)
     if not train:

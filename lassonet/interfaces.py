@@ -42,7 +42,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
             M=10,
             optim=None,
             n_iters=(1000, 100),
-            patience=(100, 10),
+            patience=(10, 10),
             tol=0.99,
             val_size=0.1,
             device=None,
@@ -166,7 +166,9 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
             lambda_,
             optimizer,
             patience=None,
-            stochastic=True
+            stochastic=True,
+            verbose=False,
+            iterationsPerEpoch=-1
     ):
         model = self.model
         if stochastic:
@@ -202,7 +204,8 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
 
         for epoch in range(epochs):
             if stochastic:
-                for X, y in train_loader:
+                enumeratedLoader = enumerate(train_loader) if iterationsPerEpoch < 0 else islice(enumerate(train_loader),0,iterationsPerEpoch)
+                for batch_num, (X, y) in enumeratedLoader:
                     X, y = X.to(self.device), y.to(self.device)
 
                     def closure():
@@ -231,8 +234,10 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                 epochs_since_best_obj = 0
             else:
                 epochs_since_best_obj += 1
-            if patience is not None and epochs_since_best_obj == patience:
+            if patience is not None and epochs_since_best_obj >= patience:
                 break
+            if verbose:
+                print('Epoch %d: Val %.4f Patience %d / %s' % (epoch ,obj, epochs_since_best_obj, patience))
         return lambda_, epoch + 1, obj
 
     @abstractmethod
@@ -243,7 +248,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
     def _lambda_max(X, y):
         raise NotImplementedError
 
-    def path(self, data, lambda_=None, stochastic=True) -> List[HistoryItem]:
+    def path(self, data, lambda_=None, stochastic=True, verboseEpochs=False, iterationsPerEpoch=-1) -> List[HistoryItem]:
         """Train LassoNet on a lambda_ path.
         The path is defined by the class parameters:
         start at `eps * lambda_max` and increment according
@@ -290,7 +295,9 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                 epochs=self.n_iters_init,
                 optimizer=self.optim_init(self.model.parameters()),
                 patience=self.patience_init,
-                stochastic=stochastic
+                stochastic=stochastic,
+                verbose=verboseEpochs,
+                iterationsPerEpoch=iterationsPerEpoch
             ),
         )
         if self.verbose:
@@ -315,11 +322,14 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                     epochs=self.n_iters_path,
                     optimizer=optimizer,
                     patience=self.patience_path,
-                    stochastic=stochastic
+                    stochastic=stochastic,
+                    verbose=verboseEpochs,
+                    iterationsPerEpoch=iterationsPerEpoch
                 ),
             )
             last = hist[-1]
             if self.verbose:
+                print("================================")
                 print(
                     f"Lambda = {current_lambda:.2e}, "
                     f"selected {self.model.selected_count()} features "
@@ -330,6 +340,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                     f"{last.val_loss - last.lambda_ * last.regularization:.2e}, "
                     f"regularization {last.regularization:.2e}"
                 )
+                print("================================")
 
             current_lambda *= self.path_multiplier
 
