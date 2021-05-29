@@ -313,7 +313,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
             current_lambda = self.eps_start * hist[-1].val_loss
         optimizer = self.optim_path(self.model.parameters())
 
-        while self.model.selected_count() != 0:
+        while self.model.selected_count() != 0 and (lambda_ is None or current_lambda <= lambda_):
             register(
                 hist,
                 *self._train(

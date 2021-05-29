@@ -56,12 +56,13 @@ def get_cifar(train=True, batch_size=64, val_size=.1, flatten=False):
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
         return data_loader
     else:
-        trainset, valset = torch.utils.data.random_split(dataset,
-                                                         [round((1 - val_size) * len(dataset)),
-                                                          round(val_size * len(dataset))])
+        trainset, valset, testset = torch.utils.data.random_split(dataset,
+                                                         [round((1 - 2*val_size) * len(dataset)),
+                                                          round(val_size * len(dataset)), round(val_size * len(dataset))])
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
         val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=True)
-        return train_loader, val_loader
+        test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+        return train_loader, val_loader, test_loader
 
 
 def get_california_housing():
