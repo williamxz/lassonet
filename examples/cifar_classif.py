@@ -5,9 +5,9 @@ from sklearn.model_selection import train_test_split
 from data import get_mnist, get_cifar
 from lassonet import LassoNetClassifier
 
-train_loader, val_loader = get_cifar(train=True, batch_size=64, val_size=.1, flatten=True)
+train_loader, val_loader, test_loader = get_cifar(train=True, batch_size=64, val_size=.1, flatten=True)
 print("Data Loaded.")
-model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(20, 80, 100), n_iters=(1000, 100), patience=(10,5), lambda_start=5e2, path_multiplier=1.02)
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(80, 100), n_iters=(1000, 100), patience=(10,5), lambda_start=5e2, path_multiplier=1.02)
 path = model.path((train_loader, val_loader), stochastic=True, verboseEpochs=True, iterationsPerEpoch=100)
 
 img = model.feature_importances_.reshape(3, 32, 32).mean(0)
@@ -24,7 +24,7 @@ lambda_ = []
 
 for save in path:
     model.load(save.state_dict)
-    y_pred, y_true = model.predict(val_loader, stochastic=True)
+    y_pred, y_true = model.predict(test_loader, stochastic=True)
     n_selected.append(save.selected.sum())
     accuracy.append(accuracy_score(y_true, y_pred))
     lambda_.append(save.lambda_)

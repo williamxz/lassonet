@@ -47,9 +47,9 @@ def evaluate(model, data, mask=None):
     y_pred = []
     y_true = []
     for X, y in data:
+        X, y = X.to(device), y.to(device)
         if mask is not None:
             X = X * mask
-        X, y = X.to(device), y.to(device)
         y_pred.extend(model(X).tolist())
         y_true.extend(y.tolist())
         return y_pred, y_true
@@ -68,9 +68,10 @@ def train(model, epochs, data, iterationsPerEpoch, criterion, optimizer, patienc
                                                                                        iterationsPerEpoch)
         for batch_num, (X, y) in enumeratedLoader:
             optimizer.zero_grad()
+            X, y = X.to(device), y.to(device)
             if mask is not None:
                 X = X * mask
-            loss = criterion(model(X.to(device)), y.to(device))
+            loss = criterion(model(X), y)
             loss.backward()
             optimizer.step()
 
@@ -90,7 +91,7 @@ for dim in dims:
     print(dim)
     lasso_acc = []
     base_acc = []
-    random_acc = [0, ]
+    random_acc = []
     for sample in test_loader:
         X, y = sample
         break
@@ -102,17 +103,9 @@ for dim in dims:
     iterationsPerEpoch = 100
     patience = (10, 5)
     model = LassoNetClassifier(M=30, verbose=True, hidden_dims=dim, n_iters=epochs, patience=patience,
-                               lambda_start=2.7e3, path_multiplier=1.02)
+                               lambda_start=5e2, path_multiplier=1.02)
     path = model.path((train_loader, val_loader), stochastic=True, verboseEpochs=False,
                       iterationsPerEpoch=iterationsPerEpoch)
-    y_pred, y_true = model.predict(test_loader, stochastic=True)
-    lasso_acc.append(accuracy_score(y_true, y_pred))
-
-    criterion = torch.nn.CrossEntropyLoss(reduction="mean")
-    optimizer = torch.optim.Adam(standard_model.parameters(), lr=1e-3)
-    train(standard_model, epochs[0], (train_loader, val_loader), iterationsPerEpoch, criterion, optimizer, patience[0])
-    y_pred, y_true = evaluate(standard_model, test_loader)
-    base_acc.append(accuracy_score(y_true, np.argmax(y_pred, axis=1)))
 
     for save in path:
         model.load(save.state_dict)
@@ -120,7 +113,7 @@ for dim in dims:
         save.acc = accuracy_score(y_true, y_pred)
 
     path = sorted(path, key=lambda k: k.acc, reverse=True)
-    to_study = [.01, .1, .5]
+    to_study = [.01, .1, .5, 1]
     for save in path:
         if not to_study:
             break
@@ -129,7 +122,7 @@ for dim in dims:
         to_study.pop()
         lasso_acc.append(save.acc)
 
-        mask = save.selected
+        mask = save.selected.to(device)
         standard_model = Model(X.shape[1],
                                *dim,
                                (y.max() + 1).item(), ).to(device)
@@ -142,23 +135,23 @@ for dim in dims:
 
         acc = 0
         for i in range(5):
-            mask = torch.zeros_like(mask)
+            new_mask = torch.zeros_like(mask).to(device)
             mask_idx = random.sample(list(range(num_ftrs)), mask.sum().item())
-            mask[mask_idx] = 1.
+            new_mask[mask_idx] = 1.
             standard_model = Model(X.shape[1],
                                    *dim,
                                    (y.max() + 1).item(), ).to(device)
             criterion = torch.nn.CrossEntropyLoss(reduction="mean")
             optimizer = torch.optim.Adam(standard_model.parameters(), lr=1e-3)
             train(standard_model, epochs[1], (train_loader, val_loader), iterationsPerEpoch, criterion, optimizer,
-                  patience[1], mask=mask)
-            y_pred, y_true = evaluate(standard_model, test_loader, mask=mask)
+                  patience[1], mask=new_mask)
+            y_pred, y_true = evaluate(standard_model, test_loader, mask=new_mask)
             acc += accuracy_score(y_true, np.argmax(y_pred, axis=1))
         random_acc.append(acc / 5)
 
     with open(os.path.join(os.getcwd(), 'selector_log.txt'), 'a') as log:
-        log.write(str(dim))
+        log.write(str(dim)+'\n')
         log.write('lasso: ' + str(lasso_acc)+'\n')
         log.write('base: ' + str(base_acc)+'\n')
         log.write('rando: ' + str(random_acc)+'\n')
-        log.write('='*20)
+        log.write('='*20+'\n')
