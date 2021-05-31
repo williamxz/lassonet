@@ -103,7 +103,7 @@ for dim in dims:
     iterationsPerEpoch = 100
     patience = (10, 5)
     model = LassoNetClassifier(M=30, verbose=True, hidden_dims=dim, n_iters=epochs, patience=patience,
-                               lambda_start=5e2, path_multiplier=1.02)
+                               lambda_start=5e2, path_multiplier=1.03)
     path = model.path((train_loader, val_loader), stochastic=True, verboseEpochs=False,
                       iterationsPerEpoch=iterationsPerEpoch)
 
@@ -113,7 +113,7 @@ for dim in dims:
         save.acc = accuracy_score(y_true, y_pred)
 
     path = sorted(path, key=lambda k: k.acc, reverse=True)
-    to_study = [.01, .1, .5, 1]
+    to_study = [.01, .1]
     for save in path:
         if not to_study:
             break

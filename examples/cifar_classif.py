@@ -7,7 +7,8 @@ from lassonet import LassoNetClassifier
 
 train_loader, val_loader, test_loader = get_cifar(train=True, batch_size=64, val_size=.1, flatten=True)
 print("Data Loaded.")
-model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(80, 100), n_iters=(1000, 100), patience=(10,5), lambda_start=5e2, path_multiplier=1.02)
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,), n_iters=(1000, 100), patience=(10, 5),
+                           lambda_start=5e2, path_multiplier=1.03)
 path = model.path((train_loader, val_loader), stochastic=True, verboseEpochs=True, iterationsPerEpoch=100)
 
 img = model.feature_importances_.reshape(3, 32, 32).mean(0)
@@ -29,14 +30,15 @@ for save in path:
     accuracy.append(accuracy_score(y_true, y_pred))
     lambda_.append(save.lambda_)
 
-to_plot = [160, 220, 300]
+to_plot = [307, 1536, 3072]
 
-for i, save in zip(n_selected, path):
+for idx, (i, save) in enumerate(zip(n_selected, path)):
     if not to_plot:
         break
     if i > to_plot[-1]:
         continue
     to_plot.pop()
+    print(accuracy[idx])
     plt.clf()
     plt.title(f"Linear model with {i} features")
     weight = save.state_dict["skip.weight"]
@@ -48,7 +50,7 @@ for i, save in zip(n_selected, path):
 fig = plt.figure(figsize=(12, 12))
 
 n_selected = [k.cpu() for k in n_selected]
-n_selected_sorted, accuracy_sorted = zip(*sorted(zip(n_selected, accuracy), key = lambda k: k[0]))
+n_selected_sorted, accuracy_sorted = zip(*sorted(zip(n_selected, accuracy), key=lambda k: k[0]))
 
 plt.subplot(311)
 plt.grid(True)
