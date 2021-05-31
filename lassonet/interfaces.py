@@ -258,6 +258,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
         The optional `lambda_` argument will also stop the path when
         this value is reached.
         """
+        totalEpochsSpent = 0
         if not stochastic:
             X, y = data
             X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=self.val_size)
@@ -328,6 +329,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
                 ),
             )
             last = hist[-1]
+            totalEpochsSpent += last.n_iters
             if self.verbose:
                 print("================================")
                 print(
@@ -346,7 +348,7 @@ class BaseLassoNet(BaseEstimator, metaclass=ABCMeta):
 
         self.feature_importances_ = self._compute_feature_importances(hist)
         """When does each feature disappear on the path?"""
-
+        print("Spent %d epochs in total" % (totalEpochsSpent))
         return hist
 
     @staticmethod

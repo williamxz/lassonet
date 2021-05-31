@@ -9,7 +9,7 @@ X, y = get_mnist(['1', '4'])
 
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 
-model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,))
+model = LassoNetClassifier(M=30, verbose=True, hidden_dims=(100,), lambda_start=7e+2)
 path = model.path((X_train, y_train), stochastic=False)
 
 img = model.feature_importances_.reshape(28, 28)
